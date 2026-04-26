@@ -26,7 +26,7 @@ def training_pipeline():
 
     joblib.dump(best_model, models_dir / 'champion_xgboost.pkl')
     joblib.dump(preprocessor, models_dir / 'orbital_preprocessor.pkl')
-    print("pipeline success")
+    print("training pipeline success")
 
 if __name__ == "__main__":
     training_pipeline()

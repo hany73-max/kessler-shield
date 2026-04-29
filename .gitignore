@@ -1,12 +1,22 @@
-/data
+# Data 
+# (Ignores the entire data folder and anything inside it)
+data/
 
-/.ipynb_checkpoints
+# Python Cache Files (This fixes your issue!)
+# (No leading slash means it ignores these anywhere in the project)
+__pycache__/
+*.py[cod]
+*$py.class
 
-/__pycache__
-/*.pyc
+# Jupyter Notebook Checkpoints
+.ipynb_checkpoints/
 
-/venv
-/env
+# Virtual Environments
+venv/
+env/
+
+# Secrets and Local Environment Variables
 .env
 
+# OS Generated Files
 .DS_Store

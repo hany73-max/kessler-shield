@@ -1,0 +1,17 @@
+# Kessler-Shield Core Dependencies
+
+# Data Manipulation & Math
+pandas>=2.0.0
+numpy>=1.24.0
+
+# Machine Learning & Preprocessing
+scikit-learn>=1.3.0
+xgboost>=2.0.0
+imbalanced-learn>=0.11.0
+
+# Pipeline Serialization
+joblib>=1.3.0
+
+# Diagnostics & Visualization
+matplotlib>=3.7.0
+seaborn>=0.12.0

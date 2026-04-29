@@ -1,59 +1,53 @@
-# Orbital Collision Early-Warning System
+# 🛡️ Kessler-Shield: Orbital Collision Early-Warning System
 
-An end-to-end Machine Learning pipeline designed to predict satellite collisions using high-dimensional orbital telemetry data. The system is engineered to provide an early-warning alert at least 48 hours prior to the Time of Closest Approach (TCA).
+**Kessler-Shield** is an end-to-end Machine Learning pipeline designed to predict high-risk orbital collisions between satellites and space debris using raw radar telemetry. 
 
-## Overview
+Built entirely in Python, this system translates mathematical theory into a hardened, object-oriented production engine capable of processing live radar feeds and issuing collision warnings in milliseconds.
 
-Predicting orbital hazards is a problem defined by extreme class imbalance (a 1:1300 hazard-to-safe ratio). This project explores multiple architectural approaches—including Synthetic Minority Oversampling (SMOTE) and Unsupervised Anomaly Detection—before establishing a highly constrained classification engine optimized for 100% Recall.
+## 🧠 The Engineering Challenge
+Predicting satellite collisions is fundamentally an anomaly detection problem. The orbital telemetry dataset features a massive **1:1300 class imbalance** (safe objects vastly outnumber collision hazards). 
 
-## Pipeline Architecture
+Instead of relying on synthetic data sampling (which can distort real-world physics), this engine was built to learn directly from the imbalanced noise. By utilizing a custom **XGBClassifier** and mathematically adjusting the decision threshold using Precision-Recall trade-off analysis, Kessler-Shield successfully identifies hazards while maintaining a strictly controlled false-positive rate.
 
-The workflow is broken down into two primary phases: Data Engineering and Model Optimization.
-
-### 1. Data Engineering & Preprocessing
-* **Temporal Filtering:** Data is strictly filtered to `time_to_tca >= 2.0` to ensure predictions are operationally viable for avoidance maneuvers.
-* **Feature Engineering:** Cyclical orbital angles (azimuth, elevation) are encoded into sine/cosine pairs to preserve geometric continuity.
-* **Data Leakage Prevention:** Post-event predictive estimates (e.g., `risk`, `max_risk_estimate`) are explicitly dropped.
-
-### 2. Modeling & Optimization
-Due to the extreme rarity of true collisions, standard classification paradigms fail. The pipeline documents the mathematical evaluation of three distinct approaches:
-* **Synthetic Data Generation (SMOTE):** Discarded. Caused severe geometric overfitting on tree-based algorithms resulting in 0% validation recall.
-* **Unsupervised Anomaly Detection:** Discarded. Evaluated via a custom ParameterGrid engine using `IsolationForest` and `OneClassSVM`. Proved that physical collisions are not mathematically "geometric outliers" in the context of standard orbit telemetry.
-* **The Champion Engine (XGBoost + Threshold Tuning):** The final architecture utilizes aggressive Random Under-Sampling to balance the feature space, paired with a heavily constrained XGBoost classifier (shallow trees, low learning rate). 
-
-## Results
-
-By extracting the raw probabilities from the XGBoost engine and manually tuning the decision threshold via a Precision-Recall curve, the system achieved the mission-critical operational requirement:
-* **Validation Recall:** 1.0 (100% of real hazards successfully flagged).
-* **False Positive Reduction:** Maintained perfect recall while suppressing the false-alarm rate to operational levels.
-
-## Repository Structure
-
+## 🏗️ System Architecture
+The project is decoupled into isolated, production-ready modules:
 ```text
-├── data/
-│   ├── raw_data/                 # Original telemetry dumps
-│   └── clean_data/               # Scaled, engineered, and sampled CSVs
-├── notebooks/
-│   ├── 01_EDA_and_Cleaning.ipynb # Temporal filtering and feature engineering
-│   └── 02_modeling.ipynb         # Model training, grid search, and threshold tuning
-├── requirements.txt
-└── README.md
+kessler-shield/
+│
+├── data/                   # Raw, training, and test telemetry (ignored in Git)
+├── models/                 # Serialized .pkl artifacts (Model + Preprocessor Memory)
+├── notebook/               # Initial EDA, Math proofs, and Model prototyping
+└── src/                    
+    ├── config.py           # Centralized configuration and model hyperparameters
+    ├── process.py          # OOP Data Engine: Handles cyclical angle math & state memory
+    ├── training.py         # Factory Script: Trains the model and serializes artifacts
+    ├── predict.py          # Live Inference Engine: Scans new telemetry for hazards
+    └── evaluate.py         # Diagnostics: Generates PR Curves and Feature Importance
 ```
 
-## Quick Start
+How to Run the Diagnostics
+To prove the model's effectiveness on unseen test data, you can run the evaluation dashboard. This will output the final classification metrics, generate a Confusion Matrix, and plot the system's Precision-Recall Curve.
 
-1. Clone the repository:
-```bash
-git clone [[https://github.com/yourusername/orbital-collision-predictor.git](https://github.com/yourusername/orbital-collision-predictor.git](https://github.com/hany73-max/kessler-shield.git))
-```
-2. Install dependencies:
-```bash
+Clone the repository.
+
+Install the required dependencies:
+
+```Bash
 pip install -r requirements.txt
 ```
-3. Launch the pipeline:
-```bash
-jupyter notebook
-```
+Run the evaluation script from the root directory:
 
-*** ### Note on Deployment
-This repository represents the research and modeling phase. To deploy this engine into a real-time data stream, the scaling parameters and the champion XGBoost model (with the custom probability threshold) must be exported via `joblib` or `pickle` and wrapped in a production API.
+```Bash
+python src/evaluate.py
+```
+Built With
+
+- Python 3
+
+- XGBoost (Gradient Boosting Engine)
+
+- Scikit-Learn (Preprocessing, Metrics, Thresholding)
+
+- Pandas & NumPy (Data Manipulation & Math)
+
+- Matplotlib & Seaborn (Diagnostic Visualization)

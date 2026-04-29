@@ -4,12 +4,13 @@ import pandas as pd
 import joblib
 from sklearn.metrics import precision_recall_curve, precision_score, recall_score, confusion_matrix, accuracy_score, f1_score
 from pathlib import Path
+
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 models_dir = PROJECT_ROOT / "models"
 models_dir.mkdir(parents=True, exist_ok=True)
 
 def _feature_importance(X_test_scaled):
-    best_model = joblib.load(models_dir/"champion_xgboost.pkl")
+    best_model = joblib.load(models_dir / "champion_xgboost.pkl")
     importances = best_model.feature_importances_
 
     feature_names = X_test_scaled.columns 
@@ -48,7 +49,8 @@ def evaluation_pipeline():
         "Precision": precision_score(y, y_pred_best, zero_division=0),
         "Recall": recall_score(y, y_pred_best, zero_division=0),
         "F1-Score": f1_score(y, y_pred_best, zero_division=0)
-        }
+    }
+    
     best_model_results_df = pd.DataFrame([best_model_results])
     print(best_model_results_df)
 
@@ -56,3 +58,8 @@ def evaluation_pipeline():
     print(Confusion_matrix)
 
     _feature_importance(X_test_scaled)
+    _precision_recall_curve(y, probability[:, 1])
+
+if __name__ == "__main__":
+    print("Initializing Kessler-Shield Evaluation Pipeline...")
+    evaluation_pipeline()

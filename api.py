@@ -67,7 +67,7 @@ class Conjunction_Event(BaseModel):
 @app.post("/predict")
 def predict(event: Conjunction_Event):
     df = pd.DataFrame([event.dict()])
-    X_test_scaled, _ = preprocessor.transform_new_data(df)
+    X_test_scaled, _, _ = preprocessor.transform_new_data(df)
     probability = best_model.predict_proba(X_test_scaled)
     y_pred_best = (probability[:, 1] >= config.decision_threshold).astype(int)
 

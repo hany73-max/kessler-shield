@@ -173,7 +173,18 @@ API_URL = os.environ.get("API_URL", "https://kessler-shield-production.up.railwa
 def predict_via_api(row: dict) -> float:
     """Single-event path — this is the one that actually calls api.py."""
     response = requests.post(f"{API_URL}/predict", json=row)
-    response.raise_for_status()
+
+    if not response.ok:
+        # raise_for_status()'s error text is just "500 Server Error: ...
+        # for url: ..." — it never reads the response BODY, which is where
+        # FastAPI's HTTPException detail actually lives. Read it explicitly
+        # instead, or every server-side error looks identical and useless.
+        try:
+            detail = response.json().get("detail", response.text)
+        except ValueError:
+            detail = response.text
+        raise RuntimeError(f"API error ({response.status_code}): {detail}")
+
     result = response.json()
     return result["risk_probability"]
 

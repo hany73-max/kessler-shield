@@ -167,7 +167,7 @@ def run_pipeline(df_raw: pd.DataFrame):
 
 import os
 
-API_URL = os.environ.get("API_URL", "kessler-shield-production.up.railway.app")
+API_URL = os.environ.get("API_URL", "https://kessler-shield-production.up.railway.app/")
 
 
 def predict_via_api(row: dict) -> float:

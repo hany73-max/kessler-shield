@@ -165,9 +165,14 @@ def run_pipeline(df_raw: pd.DataFrame):
     return probabilities, y_true, event_ids
 
 
+import os
+
+API_URL = os.environ.get("API_URL", "http://127.0.0.1:8000")
+
+
 def predict_via_api(row: dict) -> float:
     """Single-event path — this is the one that actually calls api.py."""
-    response = requests.post("http://127.0.0.1:8000/predict", json=row)
+    response = requests.post(f"{API_URL}/predict", json=row)
     response.raise_for_status()
     result = response.json()
     return result["risk_probability"]

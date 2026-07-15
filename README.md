@@ -1,53 +1,107 @@
 # 🛡️ Kessler-Shield: Orbital Collision Early-Warning System
 
-**Kessler-Shield** is an end-to-end Machine Learning pipeline designed to predict high-risk orbital collisions between satellites and space debris using raw radar telemetry. 
+**Kessler-Shield** is an end-to-end machine learning system that predicts high-risk orbital conjunctions (close approaches between satellites and debris) from raw Conjunction Data Message (CDM) telemetry — from raw data, to a trained model, to a live, deployed prediction service with its own interactive dashboard.
 
-Built entirely in Python, this system translates mathematical theory into a hardened, object-oriented production engine capable of processing live radar feeds and issuing collision warnings in milliseconds.
+### 🚀 [Live Demo](https://kessler-shield-akmjrrdw9dsqfay8zvz33h.streamlit.app/)
+
+The dashboard runs live against a separately deployed prediction API — upload a batch of conjunction events, or enter a single event manually and get an instant risk assessment.
+
+---
 
 ## 🧠 The Engineering Challenge
-Predicting satellite collisions is fundamentally an anomaly detection problem. The orbital telemetry dataset features a massive **1:1300 class imbalance** (safe objects vastly outnumber collision hazards). 
 
-Instead of relying on synthetic data sampling (which can distort real-world physics), this engine was built to learn directly from the imbalanced noise. By utilizing a custom **XGBClassifier** and mathematically adjusting the decision threshold using Precision-Recall trade-off analysis, Kessler-Shield successfully identifies hazards while maintaining a strictly controlled false-positive rate.
+Predicting satellite collisions is fundamentally an extreme anomaly-detection problem. The training data has a **~1:1300 class imbalance** — true collision hazards are vanishingly rare compared to safe conjunctions.
+
+Instead of masking that imbalance with synthetic oversampling (which can distort the real physics), Kessler-Shield learns directly from the imbalanced data and uses **precision-recall trade-off analysis** to hand-tune the decision threshold, rather than defaulting to the naive 0.5 cutoff most classifiers ship with.
+
+A second, less obvious challenge: several raw fields in this dataset (observation counts, residuals, orbit-determination arc span) are a proxy for *analyst attention* rather than physics — operators track events they already suspect are risky more closely. Those fields are deliberately excluded from training to avoid leaking human judgment into the model.
+
+---
 
 ## 🏗️ System Architecture
-The project is decoupled into isolated, production-ready modules:
+
+The project is split into four independent layers — a training/evaluation pipeline, a reusable preprocessing engine, a prediction API, and a UI — each with a single job:
+
 ```text
 kessler-shield/
 │
-├── data/                   # Raw, training, and test telemetry (ignored in Git)
-├── models/                 # Serialized .pkl artifacts (Model + Preprocessor Memory)
-├── notebook/               # Initial EDA, Math proofs, and Model prototyping
-└── src/                    
-    ├── config.py           # Centralized configuration and model hyperparameters
-    ├── process.py          # OOP Data Engine: Handles cyclical angle math & state memory
-    ├── training.py         # Factory Script: Trains the model and serializes artifacts
-    ├── predict.py          # Live Inference Engine: Scans new telemetry for hazards
-    └── evaluate.py         # Diagnostics: Generates PR Curves and Feature Importance
+├── app.py                  # Streamlit dashboard — batch analysis, manual input, model transparency
+├── api.py                  # FastAPI service — the actual "brain," serves predictions over HTTP
+├── requirements.txt        # Shared dependencies for both the API and the dashboard
+│
+├── data/                   # Raw, training, and test telemetry (gitignored)
+├── models/                 # Serialized .pkl artifacts (trained model + fitted preprocessor)
+├── notebook/               # Initial EDA, math derivations, and model prototyping
+│
+└── src/
+    ├── config.py           # Single source of truth for hyperparameters & decision threshold
+    ├── process.py          # OrbitalPreprocessor — cyclical angle encoding, imbalance-aware cleaning
+    ├── training.py          # Fits the preprocessor + model, serializes both to models/
+    ├── predict.py           # Batch inference over a CSV, using the shared preprocessor
+    ├── evaluation.py        # Precision-recall curves, confusion matrix, threshold diagnostics
+    └── main.py              # CLI entry point: `python src/main.py [train|predict|evaluate|all]`
 ```
 
-How to Run the Diagnostics
-To prove the model's effectiveness on unseen test data, you can run the evaluation dashboard. This will output the final classification metrics, generate a Confusion Matrix, and plot the system's Precision-Recall Curve.
+**Why the API and the UI are separate services, not one script:** `api.py` owns the model and does the actual prediction work; `app.py` never touches `joblib`, the model, or the preprocessor directly — it only sends raw event data to the API over HTTP and displays whatever comes back. That split means the dashboard could be swapped for a different frontend entirely without touching the model-serving code at all.
 
-Clone the repository.
+---
 
-Install the required dependencies:
+## ✨ Features
 
-```Bash
+- **Batch analysis** — upload a CDM-format CSV, get every conjunction event scored, risk-banded, and downloadable as a results file
+- **Manual single-event input** — guided form for the raw fields the model actually uses, with inline explanations of what each one means and why it matters (e.g. why angles get cyclically encoded)
+- **Risk gauge** — a visual, threshold-relative risk indicator rather than a bare probability number, since real risk probabilities here are tiny (threshold ≈ 0.0055) and a flat 0–1 scale would be meaningless
+- **Model transparency tab** — feature importances and model configuration, so predictions aren't a black box
+- **Adjustable decision threshold** — live-updates all views, demonstrating the precision/recall trade-off directly rather than just describing it
+
+---
+
+## 🛠️ Running It Locally
+
+```bash
+git clone https://github.com/hany73-max/kessler-shield.git
+cd kessler-shield
 pip install -r requirements.txt
 ```
-Run the evaluation script from the root directory:
 
-```Bash
-python src/evaluate.py
+**Train and evaluate the model:**
+```bash
+python src/main.py train      # fits the preprocessor + model, saves both to models/
+python src/main.py evaluate   # precision-recall curve, confusion matrix, threshold diagnostics
+python src/main.py all        # both, in order
 ```
-Built With
 
-- Python 3
+**Run the API and the dashboard** (in two separate terminals):
+```bash
+uvicorn api:app --reload
+streamlit run app.py
+```
 
-- XGBoost (Gradient Boosting Engine)
+---
 
-- Scikit-Learn (Preprocessing, Metrics, Thresholding)
+## 🚢 Deployment
 
-- Pandas & NumPy (Data Manipulation & Math)
+- **API** (`api.py`) — deployed on Railway
+- **Dashboard** (`app.py`) — deployed on Streamlit Community Cloud, configured via an `API_URL` secret pointing at the live API
 
-- Matplotlib & Seaborn (Diagnostic Visualization)
+Splitting these across two hosts mirrors how this would actually be deployed in production — a model-serving backend and a frontend as genuinely separate, independently scalable services.
+
+---
+
+## 📌 Known Limitations & Honest Notes
+
+- The `t_cd_area_over_mass` / `t_cr_area_over_mass` / `c_cd_area_over_mass` / `c_cr_area_over_mass` fields (drag and reflectivity area-to-mass ratios) are currently dropped by the same filter that removes covariance cross-terms, due to a naming collision (`process.py`'s cross-term filter matches on a `t_c`/`c_c` prefix, which these fields also happen to start with). The current model was trained without them. Fixing the filter and retraining is a known next step.
+- `scikit-learn` is pinned to an exact version (`==1.7.2`) rather than a range — this isn't a style preference, it's a hard requirement, since the pickled preprocessor breaks under different minor versions of `SimpleImputer`/`StandardScaler`.
+- Railway's free tier may spin down after inactivity — the first prediction after idle time can take 20–30 seconds while the service wakes up.
+
+---
+
+## Built With
+
+- **Python 3**
+- **XGBoost** — gradient boosting classifier
+- **scikit-learn** — preprocessing, imputation, scaling
+- **FastAPI + Uvicorn** — model-serving API
+- **Streamlit + Plotly** — interactive dashboard
+- **Pandas & NumPy** — data manipulation
+- **Matplotlib & Seaborn** — diagnostic visualization

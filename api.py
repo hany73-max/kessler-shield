@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from pathlib import Path
 from pydantic import BaseModel
 import pandas as pd
@@ -66,13 +66,20 @@ class Conjunction_Event(BaseModel):
 
 @app.post("/predict")
 def predict(event: Conjunction_Event):
-    df = pd.DataFrame([event.dict()])
-    X_test_scaled, _, _ = preprocessor.transform_new_data(df)
-    probability = best_model.predict_proba(X_test_scaled)
-    y_pred_best = (probability[:, 1] >= config.decision_threshold).astype(int)
+    try:
+        df = pd.DataFrame([event.dict()])
+        X_test_scaled, _, _ = preprocessor.transform_new_data(df)
+        probability = best_model.predict_proba(X_test_scaled)
+        y_pred_best = (probability[:, 1] >= config.decision_threshold).astype(int)
 
-    return {
-    "flagged_high_risk": bool(y_pred_best[0]),
-    "risk_probability": float(probability[0][1]),
-    }
+        return {
+            "flagged_high_risk": bool(y_pred_best[0]),
+            "risk_probability": float(probability[0][1]),
+        }
+    except Exception as e:
+        # Temporary: surfaces the real error in the response instead of a
+        # generic 500, so it shows up in Streamlit instead of only Railway's
+        # logs. Fine for now while debugging — worth tightening later so it
+        # doesn't leak internals once this is client-facing.
+        raise HTTPException(status_code=500, detail=f"{type(e).__name__}: {e}")
 

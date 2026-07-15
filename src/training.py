@@ -18,7 +18,7 @@ def training_pipeline():
     # initiating the class
     preprocessor = OrbitalPreprocessor()
     # Run the fit_transform_train method
-    X_train_scaled, y = preprocessor.fit_transform_train(df_raw)
+    X_train_scaled, y, event_ids = preprocessor.fit_transform_train(df_raw)
 
     # applying the best model
     best_model= XGBClassifier(**best_model_params)

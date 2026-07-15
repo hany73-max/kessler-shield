@@ -14,7 +14,7 @@ class OrbitalPreprocessor:
         df_sorted = df.sort_values(by=['event_id', 'time_to_tca'], ascending=[True, False])
         df_early = df_sorted[df_sorted['time_to_tca'] >= 2.0]
         clean_df = df_early.groupby('event_id').last().reset_index()
-        
+        retained_event_ids = clean_df['event_id'].reset_index(drop=True)
         has_target = 'risk' in clean_df.columns
         if has_target:
             y = (clean_df['risk'] >= -4.0).astype(int)
@@ -50,22 +50,22 @@ class OrbitalPreprocessor:
                     X[col] = 0
             X = X[self.expected_columns]
 
-        return X, y
+        return X, y, retained_event_ids
 
     def fit_transform_train(self, df_train):
-        X, y = self._data_clean(df_train)
+        X, y, event_ids = self._data_clean(df_train)
         self.expected_columns = X.columns.tolist()
         X_imputed = self.imputer.fit_transform(X)
         X_scaled_array = self.scaler.fit_transform(X_imputed)
         X_train_scaled = pd.DataFrame(X_scaled_array, columns=self.expected_columns)
 
-        return X_train_scaled , y
+        return X_train_scaled , y, event_ids
 
     def transform_new_data(self, df_new):
-        X, y = self._data_clean(df_new)
+        X, y, event_ids = self._data_clean(df_new)
         X_imputed = self.imputer.transform(X)
         X_scaled_array = self.scaler.transform(X_imputed)
         X_test_scaled = pd.DataFrame(X_scaled_array, columns=self.expected_columns)
 
-        return X_test_scaled, y
+        return X_test_scaled, y, event_ids
 
